@@ -97,4 +97,8 @@ if (list_condition) {
     });
 }
 
+if (search_condition) {
+
+}
+
 casper.run();
