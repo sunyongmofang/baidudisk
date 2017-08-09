@@ -1,11 +1,13 @@
 /*
  *  -login 
  *
- *  -add/upload <url> [target]
+ *  -add <url> [target]
+ *  -upload <file>
  *  -rm/delete <file_name>
  *  -mv/change <file_name> <new_file_name>
  *  -list/ls <path>
  *  -search <key>
+ *  -details
  */
 
 var casper = require("casper").create();
@@ -14,13 +16,15 @@ var stat = casper.cli.get(0), arg1 = casper.cli.get(1), arg2 = casper.cli.get(2)
 var url = "https://pan.baidu.com/";
 
 login_condition = stat == "-login";
-upload_condition = (stat == "-add" || stat == "-upload") && arg1 != undefined;
+upload_condition = stat == "-upload" && arg1 != undefined;
+add_condition = stat == "-add" && arg1 != undefined;
 delete_condition = (stat == "-rm" || stat == "-delete") && arg1 != undefined;
 mv_condition = (stat == "-mv" || stat == "-change") && arg1 != undefined && arg2 != undefined;
 list_condition = (stat == "-list" || stat == "-ls");
 search_condition = stat == "-search" && arg1 != undefined;
+details_condition = stat == "-details";
 
-if (upload_condition) {
+if (add_condition) {
     url = arg2 == undefined ? url : url + "disk/home#list/vmode=list&path=" + encodeURI(arg2);
     casper.start(url);
 
@@ -33,6 +37,40 @@ if (upload_condition) {
     casper.waitForSelector(sel_new_link_task, function() { this.click(sel_new_link_task); });
     casper.waitForSelector(sel_input_link, function() { this.sendKeys(sel_input_link, arg1); });
     casper.waitForSelector(sel_submit, function() { this.click(sel_submit); });
+}
+
+function f_map(e) {
+    var position = e.getAttribute("_position");
+    var file_type = e.childNodes[1].getAttribute('class').replace("ovdhGNg5 ", "");
+    var file_name = e.childNodes[2].firstChild.firstChild.getAttribute('title');
+    var file_size = e.childNodes[3].innerHTML;
+    var file_date = e.childNodes[4].innerHTML;
+    return [position, file_type, file_name, file_size, file_date];
+}
+
+function eval(sel_ele, f_map) {
+    var ele_list = document.querySelectorAll(sel_ele);
+    return Array.prototype.map.call(ele_list, f_map);
+}
+
+if (upload_condition) {
+    casper.start(url);
+    casper.waitForSelector('a[data-button-id=b9]', function() {
+        this.fillSelectors('a[data-button-id=b9] form', { 'input#h5Input0': arg1 }, true);
+        this.echo("upload begin!! please wait...");
+    });
+
+    casper.waitFor(function() {
+        var sel_dd_list = "dd[_position]";
+        var dirs = this.evaluate(eval, sel_dd_list, f_map);
+        var upload_result = false;
+        for (i in dirs) {
+            if (dirs[i][2] == arg1) { upload_result = true; }
+        }
+        return upload_result;
+    }, function() {
+        this.echo("upload over!!");
+    });
 }
 
 if (login_condition) {
@@ -58,18 +96,7 @@ if (list_condition) {
 
     var sel_dd_list = "dd[_position]";
     casper.waitForSelector(sel_dd_list, function() {
-        var dirs = this.evaluate(function(q_dd_list) {
-            var dd_list = document.querySelectorAll(q_dd_list);
-            return Array.prototype.map.call(dd_list, function(e) {
-                var position = e.getAttribute("_position");
-                var file_type = e.childNodes[1].getAttribute('class').replace("ovdhGNg5 ", "");
-                var file_name = e.childNodes[2].firstChild.firstChild.getAttribute('title');
-                var file_size = e.childNodes[3].innerHTML;
-                var file_date = e.childNodes[4].innerHTML;
-                return [position, file_type, file_name, file_size, file_date];
-            });
-        }, sel_dd_list);
-
+        var dirs = this.evaluate(eval, sel_dd_list, f_map);
         var len_list = [0, 0, 0, 0, 0];
         var result_str = "";
         var dirs_len = dirs.length;
@@ -97,8 +124,14 @@ if (list_condition) {
     });
 }
 
-if (search_condition) {
+if (details_condition) {
+    casper.start(url);
 
+    casper.then(function() {
+        this.echo("总共容量:" + this.getHTML('span[node-type="azFNGab"]'));
+        this.echo("已用容量:" + this.getHTML('span[node-type="FOPyGQb"]'));
+        this.echo("当前用户:" + this.getHTML('span[class="username"]'));
+    });
 }
 
 casper.run();
