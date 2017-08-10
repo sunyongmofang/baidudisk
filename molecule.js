@@ -39,6 +39,33 @@ if (add_condition) {
     casper.waitForSelector(sel_submit, function() { this.click(sel_submit); });
 }
 
+if (delete_condition) {
+    casper.start(url);
+    var sel_dd_list = "a[title=" + arg1 + "]";
+    var position = '';
+    casper.waitForSelector(sel_dd_list, function() {
+        position = this.evaluate(function(sel_dd_list) {
+            return document.querySelector(sel_dd_list).parentNode.parentNode.parentNode.getAttribute('_position');
+        }, sel_dd_list);
+    });
+
+    casper.then(function() {
+        this.click('dd[_position=' + position + ']>span:first-of-type');
+    });
+
+    casper.then(function() {
+        this.click('a[data-button-id=b27]');
+    });
+
+    casper.then(function() {
+        this.click('a[data-button-id=b65]');
+    });
+
+    casper.then(function() {
+        this.wait(2000);
+    });
+}
+
 function f_map(e) {
     var position = e.getAttribute("_position");
     var file_type = e.childNodes[1].getAttribute('class').replace("ovdhGNg5 ", "");
